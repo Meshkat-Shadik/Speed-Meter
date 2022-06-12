@@ -2,7 +2,6 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:geolocator/geolocator.dart';
-import 'package:speedmeter/response_data.dart';
 
 Future<void> main() async {
   runApp(const NoPermissionApp(hasCheckedPermissions: false));
@@ -94,13 +93,17 @@ class MyHomePage extends StatefulWidget {
   State<MyHomePage> createState() => _MyHomePageState();
 }
 
+extension MpsToKmhExtension on double {
+  double get mpsToKmh => (this * 18) / 5;
+}
+
 class _MyHomePageState extends State<MyHomePage> {
   GeolocatorPlatform locator = GeolocatorPlatform.instance;
-  late StreamController<LocationData?> _velocityUpdatedStreamController;
-  double mpstokmph(double mps) => mps * 18 / 5;
+  late StreamController<double?> _velocityUpdatedStreamController;
+  // double mpstokmph(double mps) => mps * 18 / 5;
   double? _velocity;
+  double? finalVelocity;
   double sumCurrDistance = 0;
-  LocationData? allData = LocationData(speed: 0, distance: 0, totalDistance: 0);
 
   Position? _currentPosition;
   Position? _previousPosition;
@@ -135,12 +138,12 @@ class _MyHomePageState extends State<MyHomePage> {
             if (locations.length > 1) {
               _previousPosition = locations.elementAt(locations.length - 2);
 
-              print('previous lat = ' + _previousPosition!.latitude.toString());
-              print(
-                  'previous long = ' + _previousPosition!.longitude.toString());
+              // print('previous lat = ' + _previousPosition!.latitude.toString());
+              // print(
+              //     'previous long = ' + _previousPosition!.longitude.toString());
 
-              print('current lat = ' + _currentPosition!.latitude.toString());
-              print('current long = ' + _currentPosition!.longitude.toString());
+              // print('current lat = ' + _currentPosition!.latitude.toString());
+              // print('current long = ' + _currentPosition!.longitude.toString());
 
               var _distanceBetweenLastTwoLocations = Geolocator.distanceBetween(
                 _previousPosition!.latitude,
@@ -152,15 +155,15 @@ class _MyHomePageState extends State<MyHomePage> {
               _totalDistance += _distanceBetweenLastTwoLocations >= 0
                   ? _distanceBetweenLastTwoLocations
                   : 0;
-              tempDistance = _totalDistance;
-              print('Total Distance: $_totalDistance');
+              // tempDistance = _totalDistance;
+              // print('Total Distance: $_totalDistance');
             }
           });
         }).catchError((err) {
-          print(err);
+          // print(err);
         });
       } else {
-        print("GPS is off.");
+        // print("GPS is off.");
         showDialog(
             context: context,
             builder: (BuildContext context) {
@@ -183,27 +186,11 @@ class _MyHomePageState extends State<MyHomePage> {
     locator.getCurrentPosition().then(
       (Position updatedPosition) {
         _velocity = (speed + updatedPosition.speed) / 2;
-
-        // _currDistance = Geolocator.distanceBetween(initLat, initLong,
-        //     updatedPosition.latitude, updatedPosition.longitude);
-
-        // sumCurrDistance = sumCurrDistance + _currDistance!;
-        // print('Speed = ' + _velocity.toString());
-        // print('initLat = ' + x.toString());
-        // print('initLong = ' + y.toString());
-
-        // print('currentLat = ' + updatedPosition.latitude.toString());
-        // print('currentLong = ' + updatedPosition.longitude.toString());
-        // print('currDistance = ' + (_currDistance! / 1000).toString());
-        // print('Sum currDistance = ' + (sumCurrDistance / 1000).toString());
-        print('Speed = ' + _velocity.toString());
         if (_velocity! <= 0.09) {
           _velocity = 0.0;
         }
-        print('Speed2 = ' + _velocity.toString());
-        allData?.speed = _velocity;
-
-        _velocityUpdatedStreamController.add(allData);
+        finalVelocity = _velocity;
+        _velocityUpdatedStreamController.add(finalVelocity);
       },
     );
   }
@@ -211,7 +198,7 @@ class _MyHomePageState extends State<MyHomePage> {
   @override
   void initState() {
     super.initState();
-    _velocityUpdatedStreamController = StreamController<LocationData?>();
+    _velocityUpdatedStreamController = StreamController<double?>();
     locator
         .getPositionStream(
       locationSettings: const LocationSettings(
@@ -283,30 +270,17 @@ class _MyHomePageState extends State<MyHomePage> {
         ),
         body: SingleChildScrollView(
           child: Center(
-            child: StreamBuilder<LocationData?>(
+            child: StreamBuilder<double?>(
                 stream: _velocityUpdatedStreamController.stream,
                 builder: (context, snapshot) {
-                  // print(snapshot.data?.speed.toString());
-                  print('Temp distance = ' + tempDistance.toString());
-                  print('Tuning distance = ' + tuningValue.toString());
                   return snapshot.hasData
                       ? InkWell(
                           onTap: () async {
                             setState(() {
-                              //    isVisible = !isVisible;
                               isInitialDistance = false;
                               tempDistance = _totalDistance - tuningValue;
                               tuningValue = _totalDistance;
                             });
-                            // locator.getCurrentPosition().then(
-                            //       (value) => calcDistance(
-                            //         value.latitude,
-                            //         value.longitude,
-                            //         _currentPosition!.latitude,
-                            //         _currentPosition!.longitude,
-                            //       ),
-                            //     );
-                            // _calculateDistance(true);
                           },
                           child: Column(
                             mainAxisAlignment: MainAxisAlignment.center,
@@ -357,7 +331,8 @@ class _MyHomePageState extends State<MyHomePage> {
                                                       1000
                                                   ? " Km"
                                                   : " M",
-                                              style: TextStyle(fontSize: 30),
+                                              style:
+                                                  const TextStyle(fontSize: 30),
                                             )
                                           ],
                                         ),
@@ -394,7 +369,8 @@ class _MyHomePageState extends State<MyHomePage> {
                                               _totalDistance >= 1000
                                                   ? " Km"
                                                   : " M",
-                                              style: TextStyle(fontSize: 30),
+                                              style:
+                                                  const TextStyle(fontSize: 30),
                                             )
                                           ],
                                         ),
@@ -420,7 +396,7 @@ class _MyHomePageState extends State<MyHomePage> {
                                               MainAxisAlignment.center,
                                           children: [
                                             Text(
-                                              ((snapshot.data!.speed! * 18) / 5)
+                                              (snapshot.data!.mpsToKmh)
                                                   .toStringAsFixed(1),
                                               style: const TextStyle(
                                                 fontSize: 100,
